@@ -124,7 +124,7 @@ ID : {signal_id}
 
     send_telegram(message)
     
-    def main():
+def main():
 
     data = load_data()
 

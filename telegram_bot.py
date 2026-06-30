@@ -6,23 +6,24 @@ telegram_bot.py
 import os
 import requests
 
-BOT_TOKEN = os.getenv("BOT_TOKEN")
-CHAT_ID = os.getenv("CHAT_ID")
+BOT_TOKEN = os.environ["BOT_TOKEN"]
+CHAT_ID = os.environ["CHAT_ID"]
 
 
 def send_telegram(message):
 
-    if not BOT_TOKEN or not CHAT_ID:
-        print("Telegram設定なし")
-        return
+    url = (
+        f"https://api.telegram.org/bot"
+        f"{BOT_TOKEN}/sendMessage"
+    )
 
-    url = f"https://api.telegram.org/bot{BOT_TOKEN}/sendMessage"
-
-    requests.post(
+    response = requests.post(
         url,
         data={
             "chat_id": CHAT_ID,
             "text": message,
         },
-        timeout=30,
+        timeout=20,
     )
+
+    response.raise_for_status()

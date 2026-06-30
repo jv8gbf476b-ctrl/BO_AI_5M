@@ -1,47 +1,86 @@
 """
-BO_AI_5M v6
+BO_AI_5M
 report.py
 """
 
 from history import load_history
 
 
-def trade_df(df):
-    return df[df["result"] != "NO_TRADE"] if not df.empty else df
-
-
-def calc_win_rate(df):
-    df = trade_df(df)
-    if df.empty:
-        return 0,0,0,0.0
-    total=len(df)
-    wins=len(df[df["result"]=="WIN"])
-    losses=len(df[df["result"]=="LOSE"])
-    return total,wins,losses,wins/total*100
-
-
 def make_report_text():
-    df=load_history()
+
+    df = load_history()
+
     if df.empty:
         return "📊 成績: まだ記録なし"
 
-    total,wins,losses,rate=calc_win_rate(df)
-    skip=len(df[df["result"]=="NO_TRADE"])
+    trade_df = df[
+        df["result"] != "NO_TRADE"
+    ]
 
-    txt=f"""📊 BO_AI_5M 成績
+    total = len(trade_df)
 
-累計エントリー : {total}戦
+    wins = len(
+        trade_df[
+            trade_df["result"] == "WIN"
+        ]
+    )
+
+    losses = len(
+        trade_df[
+            trade_df["result"] == "LOSE"
+        ]
+    )
+
+    skips = len(
+        df[
+            df["result"] == "NO_TRADE"
+        ]
+    )
+
+    if total == 0:
+        win_rate = 0
+
+    else:
+        win_rate = wins / total * 100
+
+    text = f"""
+📊 BO_AI_5M 成績
+
+エントリー : {total}戦
+
 勝ち : {wins}
-負け : {losses}
-勝率 : {rate:.1f}%
-見送り : {skip}回
 
+負け : {losses}
+
+勝率 : {win_rate:.1f}%
+
+見送り : {skips}回
 """
 
-    for sig in ["HIGH","LOW"]:
-        s=df[df["signal"]==sig]
-        t,w,l,r=calc_win_rate(s)
-        if t:
-            txt+=f"{sig} : {t}戦 {w}勝 {l}敗 ({r:.1f}%)\n"
+    for signal in ["HIGH", "LOW"]:
 
-    return txt
+        sub = trade_df[
+            trade_df["signal"] == signal
+        ]
+
+        if sub.empty:
+            continue
+
+        s_total = len(sub)
+
+        s_win = len(
+            sub[
+                sub["result"] == "WIN"
+            ]
+        )
+
+        s_rate = s_win / s_total * 100
+
+        text += (
+            f"\n{signal} : "
+            f"{s_total}戦 "
+            f"{s_win}勝 "
+            f"勝率{s_rate:.1f}%"
+        )
+
+    return text

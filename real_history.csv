@@ -1,0 +1,2 @@
+id,signal,actual,entry_time,judge_time,entry_price,result_price,price_diff,up_prob,down_prob,confidence,result
+20260701_020606,LOW,LOW,2026-07-01T02:06:06.207227+09:00,2026-07-01T02:18:30.823947+09:00,162.62399291992188,162.60800170898438,-0.015991,0.24541,0.75459,0.75459,WIN

@@ -38,9 +38,9 @@ jobs:
 
           git remote set-url origin https://x-access-token:${PAT_TOKEN}@github.com/jv8gbf476b-ctrl/BO_AI_5M.git
 
-          git pull --rebase origin main
-
           git add -A
           git commit -m "update BO_AI_5M real trade" || echo "No changes"
+
+          git pull --rebase origin main
 
           git push origin HEAD:main

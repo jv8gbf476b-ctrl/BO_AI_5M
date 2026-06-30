@@ -4,33 +4,42 @@ data.py
 """
 
 import yfinance as yf
+import pandas as pd
 
-from config import SYMBOL
-from config import INTERVAL
-from config import PERIOD
+
+TICKER = "JPY=X"
 
 
 def load_data():
 
-    df = yf.download(
-        SYMBOL,
-        interval=INTERVAL,
-        period=PERIOD,
-        auto_adjust=True,
+    data = yf.download(
+        TICKER,
+        period="60d",
+        interval="5m",
+        auto_adjust=False,
         progress=False,
     )
 
-    if df.empty:
-        raise Exception("データ取得失敗")
+    if data.empty:
+        raise RuntimeError(
+            "データ取得失敗"
+        )
 
-    df = df.rename(
-        columns={
-            "Open": "Open",
-            "High": "High",
-            "Low": "Low",
-            "Close": "Close",
-            "Volume": "Volume",
-        }
-    )
+    if isinstance(
+        data.columns,
+        pd.MultiIndex,
+    ):
+        data.columns = (
+            data.columns.get_level_values(0)
+        )
 
-    return df
+    data = data[
+        [
+            "Open",
+            "High",
+            "Low",
+            "Close",
+        ]
+    ].dropna()
+
+    return data

@@ -11,7 +11,9 @@ from config import PENDING_FILE
 
 def load_pending():
 
-    if not os.path.exists(PENDING_FILE):
+    if not os.path.exists(
+        PENDING_FILE
+    ):
         return None
 
     with open(
@@ -19,6 +21,7 @@ def load_pending():
         "r",
         encoding="utf-8",
     ) as f:
+
         return json.load(f)
 
 
@@ -29,6 +32,7 @@ def save_pending(data):
         "w",
         encoding="utf-8",
     ) as f:
+
         json.dump(
             data,
             f,
@@ -39,5 +43,9 @@ def save_pending(data):
 
 def clear_pending():
 
-    if os.path.exists(PENDING_FILE):
-        os.remove(PENDING_FILE)
+    if os.path.exists(
+        PENDING_FILE
+    ):
+        os.remove(
+            PENDING_FILE
+        )

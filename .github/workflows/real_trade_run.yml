@@ -2,15 +2,6 @@ name: BO_AI_5M_REAL
 
 on:
   workflow_dispatch:
-    inputs:
-      direction:
-        description: "HIGH または LOW"
-        required: true
-        default: "HIGH"
-        type: choice
-        options:
-          - HIGH
-          - LOW
 
   schedule:
     - cron: "*/1 * * * *"
@@ -30,25 +21,21 @@ jobs:
           python-version: "3.11"
 
       - name: Install packages
-        run: |
-          pip install yfinance pandas requests
+        run: pip install yfinance pandas requests lightgbm scikit-learn
 
-      - name: Run Real Trade
+      - name: Run Real Trade AI
         env:
           BOT_TOKEN: ${{ secrets.BOT_TOKEN }}
           CHAT_ID: ${{ secrets.CHAT_ID }}
-          PAT_TOKEN: ${{ secrets.PAT_TOKEN }}
-          REAL_DIRECTION: ${{ github.event.inputs.direction }}
         run: python real_trade.py
 
-      - name: Save
+      - name: Save real trade
+        env:
+          PAT_TOKEN: ${{ secrets.PAT_TOKEN }}
         run: |
           git config user.name "github-actions"
           git config user.email "github-actions@github.com"
-
           git add -A
-          git commit -m "update real trade" || echo "No changes"
-
+          git commit -m "update BO_AI_5M real trade" || echo "No changes"
           git remote set-url origin https://x-access-token:${PAT_TOKEN}@github.com/jv8gbf476b-ctrl/BO_AI_5M.git
-
           git push

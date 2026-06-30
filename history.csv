@@ -1,0 +1,2 @@
+id,entry_time,judge_time,signal,actual_direction,entry_close,result_close,price_diff,up_prob,down_prob,confidence,result
+20260701_0050,2026-07-01T00:50:00+09:00,2026-07-01T00:55:00+09:00,SKIP,HIGH,162.58399963378906,162.61399841308594,0.029999,0.3094020656253655,0.6905979343746345,0.6905979343746345,NO_TRADE

@@ -11,20 +11,24 @@ from config import HISTORY_FILE
 
 def load_history():
 
-    if not os.path.exists(HISTORY_FILE):
+    if not os.path.exists(
+        HISTORY_FILE
+    ):
         return pd.DataFrame()
 
-    return pd.read_csv(HISTORY_FILE)
+    return pd.read_csv(
+        HISTORY_FILE
+    )
 
 
-def append_history(record):
+def append_history(row):
 
     df = load_history()
 
     df = pd.concat(
         [
             df,
-            pd.DataFrame([record]),
+            pd.DataFrame([row]),
         ],
         ignore_index=True,
     )

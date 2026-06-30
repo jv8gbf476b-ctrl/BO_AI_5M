@@ -20,9 +20,15 @@ jobs:
           python-version: "3.11"
 
       - name: Install packages
-        run: pip install yfinance lightgbm pandas scikit-learn requests
+        run: |
+          pip install \
+            yfinance \
+            lightgbm \
+            pandas \
+            scikit-learn \
+            requests
 
-      - name: Run AI
+      - name: Run BO_AI_5M
         env:
           BOT_TOKEN: ${{ secrets.BOT_TOKEN }}
           CHAT_ID: ${{ secrets.CHAT_ID }}
@@ -34,7 +40,10 @@ jobs:
         run: |
           git config user.name "github-actions"
           git config user.email "github-actions@github.com"
+
           git add -A
-          git commit -m "update BO_AI_5M history" || echo "No changes"
+          git commit -m "update BO_AI_5M" || echo "No changes"
+
           git remote set-url origin https://x-access-token:${PAT_TOKEN}@github.com/jv8gbf476b-ctrl/BO_AI_5M.git
+
           git push

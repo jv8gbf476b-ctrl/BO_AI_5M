@@ -137,3 +137,98 @@ def signal_analysis(df):
         })
 
     return result
+
+def make_learning_report(df, milestone):
+
+    trade_df = df[
+        df["result"] != "NO_TRADE"
+    ]
+
+    total, wins, rate = calc_rate(
+        trade_df
+    )
+
+    text = f"""
+🤖 Market Assistant 学習レポート
+
+{milestone}戦 到達
+
+累計 : {total}戦
+勝ち : {wins}
+勝率 : {rate:.1f}%
+
+📌 HIGH / LOW 分析
+"""
+
+    for item in signal_analysis(trade_df):
+
+        text += (
+            f"{item['signal']} : "
+            f"{item['total']}戦 "
+            f"{item['wins']}勝 "
+            f"勝率{item['rate']:.1f}%\n"
+        )
+
+    text += "\n⭐ 信頼度別\n"
+
+    for item in confidence_analysis(trade_df):
+
+        if item["total"] == 0:
+            continue
+
+        text += (
+            f"{item['name']} : "
+            f"{item['total']}戦 "
+            f"{item['wins']}勝 "
+            f"勝率{item['rate']:.1f}%\n"
+        )
+
+    text += """
+次の節目まで学習を継続します。
+"""
+
+    return text
+
+
+def check_learning(df):
+
+    if df.empty:
+        return None
+
+    trade_df = df[
+        df["result"] != "NO_TRADE"
+    ]
+
+    trade_count = len(trade_df)
+
+    state = load_state()
+    notified = state.get(
+        "notified",
+        []
+    )
+
+    for milestone in MILESTONES:
+
+        if (
+            trade_count >= milestone
+            and milestone not in notified
+        ):
+
+            report = make_learning_report(
+                df,
+                milestone,
+            )
+
+            notified.append(
+                milestone
+            )
+
+            state["notified"] = notified
+
+            save_state(
+                state
+            )
+
+            return report
+
+    return None

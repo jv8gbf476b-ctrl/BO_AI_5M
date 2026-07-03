@@ -1,10 +1,14 @@
 """
-BO_AI_5M
+Market Assistant
 model.py
+学習・予測
 """
 
 from lightgbm import LGBMClassifier
 from sklearn.model_selection import train_test_split
+
+from model_store import load_current_model
+from model_store import save_current_model
 
 FEATURES = [
     "Open",
@@ -53,7 +57,19 @@ def train_model(data):
         y_train,
     )
 
+    save_current_model(model)
+
     return model
+
+
+def get_model(data):
+
+    model = load_current_model()
+
+    if model is not None:
+        return model
+
+    return train_model(data)
 
 
 def predict_latest(model, data):

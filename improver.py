@@ -1,11 +1,14 @@
 """
 Market Assistant
 improver.py
+自己改善エンジン
 """
 
 from history import load_history
-from model import train_model
+from model import train_fresh_model
+from model import predict_with_model
 from model_store import (
+    load_current_model,
     save_candidate_model,
     promote_candidate_model,
 )
@@ -17,6 +20,45 @@ MILESTONES = [
     1500,
     2000,
 ]
+
+
+def calc_model_win_rate(model, data):
+
+    total = 0
+    wins = 0
+
+    for i in range(len(data) - 1):
+
+        row = data.iloc[[i]]
+        next_close = float(data.iloc[i + 1]["Close"])
+        now_close = float(data.iloc[i]["Close"])
+
+        up_prob, down_prob = predict_with_model(
+            model,
+            row,
+        )
+
+        if up_prob >= down_prob:
+            signal = "HIGH"
+        else:
+            signal = "LOW"
+
+        if next_close > now_close:
+            actual = "HIGH"
+        elif next_close < now_close:
+            actual = "LOW"
+        else:
+            actual = "FLAT"
+
+        total += 1
+
+        if signal == actual:
+            wins += 1
+
+    if total == 0:
+        return 0.0
+
+    return wins / total * 100
 
 
 def should_improve():
@@ -40,10 +82,30 @@ def improve_model(data):
     if not should_improve():
         return False
 
-    model = train_model(data)
+    current_model = load_current_model()
+
+    if current_model is None:
+        return False
+
+    candidate_model = train_fresh_model(
+        data
+    )
+
+    current_rate = calc_model_win_rate(
+        current_model,
+        data,
+    )
+
+    candidate_rate = calc_model_win_rate(
+        candidate_model,
+        data,
+    )
+
+    if candidate_rate <= current_rate:
+        return False
 
     save_candidate_model(
-        model
+        candidate_model
     )
 
     promote_candidate_model()

@@ -51,7 +51,6 @@ def confidence_band(confidence):
 
     return "60%未満"
 
-
 def confidence_analysis(df):
     if df.empty or "confidence" not in df.columns:
         return ""
@@ -59,6 +58,29 @@ def confidence_analysis(df):
     data = df.copy()
     data["band"] = data["confidence"].apply(confidence_band)
 
+    bands = [
+        "90%以上",
+        "80〜90%",
+        "70〜80%",
+        "60〜70%",
+        "60%未満",
+    ]
+
     text = "\n⭐ 信頼度別\n"
 
-    for band in ["90%以上", "80〜90%", "70〜80%", "60〜70%", "
+    for band in bands:
+        sub = data[data["band"] == band]
+        total, wins, losses, rate = calc_rate(sub)
+
+        if total == 0:
+            continue
+
+        text += (
+            f"{band} : "
+            f"{total}戦 "
+            f"{wins}勝 "
+            f"{losses}敗 "
+            f"勝率{rate:.1f}%\n"
+        )
+
+    return text

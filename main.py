@@ -16,20 +16,16 @@ from learning import check_learning
 from improver import improve_model
 from telegram_bot import send_telegram
 
-from config import THRESHOLD
 from config import ENABLE_SIGNAL_NOTIFICATION
 from config import ENABLE_LEARNING_NOTIFICATION
 
 
 def decide_signal(up_prob, down_prob):
 
-    if up_prob >= THRESHOLD:
+    if up_prob >= down_prob:
         return "HIGH"
 
-    if down_prob >= THRESHOLD:
-        return "LOW"
-
-    return "SKIP"
+    return "LOW"
 
 
 def save_signal(data, result):

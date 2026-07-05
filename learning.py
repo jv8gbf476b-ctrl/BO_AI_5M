@@ -8,7 +8,6 @@ import json
 import os
 
 STATE_FILE = "learning_state.json"
-
 MILESTONES = [30, 100, 300, 600, 1000, 1500, 2000]
 
 
@@ -37,50 +36,60 @@ def calc_rate(df):
     return total, wins, losses, rate
 
 
-def confidence_band(confidence):
-    confidence = float(confidence)
+def make_learning_report(df, milestone):
+    trade_df = df[df["result"] != "NO_TRADE"]
 
-    if confidence >= 0.90:
-        return "90%以上"
-    if confidence >= 0.80:
-        return "80〜90%"
-    if confidence >= 0.70:
-        return "70〜80%"
-    if confidence >= 0.60:
-        return "60〜70%"
+    total, wins, losses, rate = calc_rate(trade_df)
 
-    return "60%未満"
+    text = f"""
+🤖 Market Assistant 学習レポート
 
-def confidence_analysis(df):
-    if df.empty or "confidence" not in df.columns:
-        return ""
+{milestone}戦 到達
 
-    data = df.copy()
-    data["band"] = data["confidence"].apply(confidence_band)
+累計 : {total}戦
+勝ち : {wins}
+負け : {losses}
+勝率 : {rate:.1f}%
+"""
 
-    bands = [
-        "90%以上",
-        "80〜90%",
-        "70〜80%",
-        "60〜70%",
-        "60%未満",
-    ]
+    text += "\n📌 HIGH / LOW\n"
 
-    text = "\n⭐ 信頼度別\n"
+    for signal in ["HIGH", "LOW"]:
+        sub = trade_df[trade_df["signal"] == signal]
+        s_total, s_wins, s_losses, s_rate = calc_rate(sub)
 
-    for band in bands:
-        sub = data[data["band"] == band]
-        total, wins, losses, rate = calc_rate(sub)
+        if s_total > 0:
+            text += (
+                f"{signal} : "
+                f"{s_total}戦 "
+                f"{s_wins}勝 "
+                f"{s_losses}敗 "
+                f"勝率{s_rate:.1f}%\n"
+            )
 
-        if total == 0:
-            continue
-
-        text += (
-            f"{band} : "
-            f"{total}戦 "
-            f"{wins}勝 "
-            f"{losses}敗 "
-            f"勝率{rate:.1f}%\n"
-        )
+    text += "\n次の節目まで学習を継続します。"
 
     return text
+
+
+def check_learning(df):
+    if df.empty:
+        return None
+
+    trade_df = df[df["result"] != "NO_TRADE"]
+    trade_count = len(trade_df)
+
+    state = load_state()
+    notified = state.get("notified", [])
+
+    for milestone in MILESTONES:
+        if trade_count >= milestone and milestone not in notified:
+            report = make_learning_report(df, milestone)
+
+            notified.append(milestone)
+            state["notified"] = notified
+            save_state(state)
+
+            return report
+
+    return None

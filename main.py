@@ -13,6 +13,7 @@ from pending import save_pending
 from grading import grade_pending
 from history import load_history
 from learning import check_learning
+from improver import improve_model
 from telegram_bot import send_telegram
 
 from config import THRESHOLD
@@ -74,10 +75,20 @@ def main():
     if pending:
         data = grade_pending(data, pending)
 
+    improved = improve_model(data)
+
     model = get_model(data)
     result = predict_latest(model, data)
 
     save_signal(data, result)
+
+    if improved:
+        send_telegram("""
+🤖 Market Assistant
+
+自己改善モデルを更新しました。
+新しいモデルで学習を継続します。
+""")
 
     if ENABLE_LEARNING_NOTIFICATION:
         history = load_history()

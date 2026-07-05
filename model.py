@@ -30,7 +30,7 @@ FEATURES = [
 ]
 
 
-def train_model(data):
+def train_fresh_model(data):
 
     X = data[FEATURES]
     y = data["Target"]
@@ -52,7 +52,17 @@ def train_model(data):
         verbose=-1,
     )
 
-    model.fit(X_train, y_train)
+    model.fit(
+        X_train,
+        y_train,
+    )
+
+    return model
+
+
+def train_model(data):
+
+    model = train_fresh_model(data)
 
     save_current_model(model)
 
@@ -73,12 +83,28 @@ def predict_latest(model, data):
 
     latest = data.iloc[[-1]][FEATURES]
 
-    down_prob, up_prob = model.predict_proba(latest)[0]
+    down_prob, up_prob = model.predict_proba(
+        latest
+    )[0]
 
-    confidence = max(up_prob, down_prob)
+    confidence = max(
+        up_prob,
+        down_prob,
+    )
 
     return {
         "up_prob": float(up_prob),
         "down_prob": float(down_prob),
         "confidence": float(confidence),
     }
+
+
+def predict_with_model(model, row):
+
+    latest = row[FEATURES]
+
+    down_prob, up_prob = model.predict_proba(
+        latest
+    )[0]
+
+    return float(up_prob), float(down_prob)

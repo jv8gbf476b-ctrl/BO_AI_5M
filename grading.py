@@ -4,6 +4,7 @@ grading.py
 """
 
 from zoneinfo import ZoneInfo
+import pandas as pd
 
 from history import append_history
 from pending import clear_pending
@@ -11,13 +12,19 @@ from pending import clear_pending
 
 def grade_pending(data, pending):
 
-    entry_time = pending["entry_time"]
+    print("grading start")
+    print("pending id:", pending.get("id"))
+
+    entry_time = pd.Timestamp(pending["entry_time"])
 
     future = data[
         data.index > entry_time
     ]
 
+    print("future rows:", len(future))
+
     if future.empty:
+        print("まだ採点できない")
         return data
 
     result_time = future.index[0]
@@ -32,14 +39,12 @@ def grade_pending(data, pending):
     else:
         actual = "FLAT"
 
-    if signal == "SKIP":
-        result = "NO_TRADE"
-    elif signal == actual:
+    if signal == actual:
         result = "WIN"
     else:
         result = "LOSE"
 
-    append_history({
+    row = {
         "id": pending["id"],
         "entry_time": pending["entry_time_jst"],
         "judge_time": result_time.tz_convert(
@@ -54,8 +59,15 @@ def grade_pending(data, pending):
         "down_prob": pending["down_prob"],
         "confidence": pending["confidence"],
         "result": result,
-    })
+    }
+
+    append_history(row)
+
+    print("history appended")
+    print("result:", result)
+    print("actual:", actual)
 
     clear_pending()
+    print("pending cleared")
 
     return data

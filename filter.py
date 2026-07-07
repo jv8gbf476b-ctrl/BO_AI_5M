@@ -28,8 +28,8 @@ def detect_skip_filter(data, result):
 
     latest = data.iloc[-1]
 
-    # 期待値差が小さい時は転換・揉み合い警戒
-    if edge < 0.08:
+    # 期待値差がかなり小さい時だけSKIP
+    if edge < 0.05:
         return True, "SKIP_WEAK_EDGE", raw_signal
 
     # 直近の方向転換を検知
@@ -50,7 +50,7 @@ def detect_skip_filter(data, result):
             if raw_signal == "HIGH":
                 return True, "SKIP_TREND_CHANGE", raw_signal
 
-    # 移動平均が接近している時は方向感なし
+    # 移動平均がかなり接近している時だけSKIP
     ma_gap = abs(
         float(latest["MA5"])
         - float(latest["MA20"])
@@ -58,7 +58,7 @@ def detect_skip_filter(data, result):
 
     atr = float(latest["ATR"])
 
-    if atr > 0 and ma_gap < atr * 0.15:
+    if atr > 0 and ma_gap < atr * 0.08:
         return True, "SKIP_MA_FLAT", raw_signal
 
     # ボラ急変時は見送り

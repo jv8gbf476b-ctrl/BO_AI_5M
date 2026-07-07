@@ -6,24 +6,32 @@ main.py
 
 from data import load_data
 from features import build_features
-from model import get_model, predict_latest
-from pending import load_pending, save_pending
+from model import get_model
+from model import predict_latest
+from pending import load_pending
+from pending import save_pending
 from grading import grade_pending
 from history import load_history
 from learning import check_learning
 from improver import improve_model
 from telegram_bot import send_telegram
-from config import ENABLE_SIGNAL_NOTIFICATION, ENABLE_LEARNING_NOTIFICATION
+from filter import detect_skip_filter
 
-
-def decide_signal(up_prob, down_prob):
-    return "HIGH" if up_prob >= down_prob else "LOW"
+from config import ENABLE_SIGNAL_NOTIFICATION
+from config import ENABLE_LEARNING_NOTIFICATION
 
 
 def save_signal(data, result):
+
     latest = data.iloc[-1]
     latest_time = data.index[-1]
-    signal = decide_signal(result["up_prob"], result["down_prob"])
+
+    skip, skip_reason, raw_signal = detect_skip_filter(
+        data,
+        result,
+    )
+
+    signal = "SKIP" if skip else raw_signal
 
     payload = {
         "id": latest_time.strftime("%Y%m%d_%H%M"),
@@ -31,6 +39,8 @@ def save_signal(data, result):
         "entry_time_jst": latest_time.tz_convert("Asia/Tokyo").isoformat(),
         "entry_close": float(latest["Close"]),
         "signal": signal,
+        "raw_signal": raw_signal,
+        "skip_reason": skip_reason,
         "up_prob": result["up_prob"],
         "down_prob": result["down_prob"],
         "confidence": result["confidence"],
@@ -41,6 +51,8 @@ def save_signal(data, result):
     print("saved pending_signal.json")
     print("id:", payload["id"])
     print("signal:", signal)
+    print("raw_signal:", raw_signal)
+    print("skip_reason:", skip_reason)
     print("close:", payload["entry_close"])
 
     if ENABLE_SIGNAL_NOTIFICATION:
@@ -48,6 +60,8 @@ def save_signal(data, result):
 🤖 Market Assistant
 
 AI : {signal}
+元判定 : {raw_signal}
+SKIP理由 : {skip_reason}
 
 上昇確率 : {result["up_prob"]*100:.2f}%
 下降確率 : {result["down_prob"]*100:.2f}%
@@ -56,6 +70,7 @@ AI : {signal}
 
 
 def main():
+
     print("START Market Assistant")
 
     data = load_data()

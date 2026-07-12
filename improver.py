@@ -13,6 +13,7 @@ from model_store import (
     promote_candidate_model,
 )
 
+
 MILESTONES = [
     300,
     600,
@@ -30,8 +31,14 @@ def calc_model_win_rate(model, data):
     for i in range(len(data) - 1):
 
         row = data.iloc[[i]]
-        next_close = float(data.iloc[i + 1]["Close"])
-        now_close = float(data.iloc[i]["Close"])
+
+        now_close = float(
+            data.iloc[i]["Close"]
+        )
+
+        next_close = float(
+            data.iloc[i + 1]["Close"]
+        )
 
         up_prob, down_prob = predict_with_model(
             model,
@@ -45,8 +52,10 @@ def calc_model_win_rate(model, data):
 
         if next_close > now_close:
             actual = "HIGH"
+
         elif next_close < now_close:
             actual = "LOW"
+
         else:
             actual = "FLAT"
 
@@ -66,15 +75,25 @@ def should_improve():
     df = load_history()
 
     if df.empty:
+        print("improver: history empty")
         return False
 
-    trade_df = df[
-        df["result"] != "NO_TRADE"
-    ]
+    # WIN・LOSE・SKIPを含む全判定を数える
+    history_count = len(df)
 
-    trade_count = len(trade_df)
+    print(
+        "improver history count:",
+        history_count,
+    )
 
-    return trade_count in MILESTONES
+    if history_count in MILESTONES:
+        print(
+            "improver milestone reached:",
+            history_count,
+        )
+        return True
+
+    return False
 
 
 def improve_model(data):
@@ -85,7 +104,10 @@ def improve_model(data):
     current_model = load_current_model()
 
     if current_model is None:
+        print("improver: current model not found")
         return False
+
+    print("improver: training candidate model")
 
     candidate_model = train_fresh_model(
         data
@@ -101,7 +123,20 @@ def improve_model(data):
         data,
     )
 
+    print(
+        "current model rate:",
+        round(current_rate, 2),
+    )
+
+    print(
+        "candidate model rate:",
+        round(candidate_rate, 2),
+    )
+
     if candidate_rate <= current_rate:
+        print(
+            "improver: candidate rejected"
+        )
         return False
 
     save_candidate_model(
@@ -109,5 +144,9 @@ def improve_model(data):
     )
 
     promote_candidate_model()
+
+    print(
+        "improver: candidate promoted"
+    )
 
     return True

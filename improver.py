@@ -4,6 +4,9 @@ improver.py
 自己改善エンジン
 """
 
+import json
+import os
+
 from history import load_history
 from model import train_fresh_model
 from model import predict_with_model
@@ -13,14 +16,50 @@ from model_store import (
     promote_candidate_model,
 )
 
+STATE_FILE = "learning_state.json"
 
-MILESTONES = [
-    300,
-    600,
-    1000,
-    1500,
-    2000,
-]
+IMPROVE_INTERVAL = 300
+FIRST_IMPROVE = 300
+
+
+def load_state():
+
+    if not os.path.exists(STATE_FILE):
+        return {
+            "notified": [],
+            "model_version": 1,
+            "last_improve": 0,
+        }
+
+    with open(
+        STATE_FILE,
+        "r",
+        encoding="utf-8",
+    ) as f:
+
+        state = json.load(f)
+
+    state.setdefault("notified", [])
+    state.setdefault("model_version", 1)
+    state.setdefault("last_improve", 0)
+
+    return state
+
+
+def save_state(state):
+
+    with open(
+        STATE_FILE,
+        "w",
+        encoding="utf-8",
+    ) as f:
+
+        json.dump(
+            state,
+            f,
+            ensure_ascii=False,
+            indent=2,
+        )
 
 
 def calc_model_win_rate(model, data):
@@ -45,10 +84,11 @@ def calc_model_win_rate(model, data):
             row,
         )
 
-        if up_prob >= down_prob:
-            signal = "HIGH"
-        else:
-            signal = "LOW"
+        signal = (
+            "HIGH"
+            if up_prob >= down_prob
+            else "LOW"
+        )
 
         if next_close > now_close:
             actual = "HIGH"
@@ -78,22 +118,42 @@ def should_improve():
         print("improver: history empty")
         return False
 
-    # WIN・LOSE・SKIPを含む全判定を数える
     history_count = len(df)
 
+    state = load_state()
+
+    last_improve = state["last_improve"]
+
     print(
-        "improver history count:",
+        "history:",
         history_count,
     )
 
-    if history_count in MILESTONES:
-        print(
-            "improver milestone reached:",
-            history_count,
-        )
-        return True
+    print(
+        "last improve:",
+        last_improve,
+    )
 
-    return False
+    if history_count < FIRST_IMPROVE:
+        return False
+
+    milestone = (
+        history_count
+        // IMPROVE_INTERVAL
+    ) * IMPROVE_INTERVAL
+
+    if milestone <= last_improve:
+        return False
+
+    state["last_improve"] = milestone
+    save_state(state)
+
+    print(
+        "improve milestone:",
+        milestone,
+    )
+
+    return True
 
 
 def improve_model(data):
@@ -104,10 +164,14 @@ def improve_model(data):
     current_model = load_current_model()
 
     if current_model is None:
-        print("improver: current model not found")
+        print(
+            "current model not found"
+        )
         return False
 
-    print("improver: training candidate model")
+    print(
+        "training candidate..."
+    )
 
     candidate_model = train_fresh_model(
         data
@@ -124,19 +188,21 @@ def improve_model(data):
     )
 
     print(
-        "current model rate:",
+        "current:",
         round(current_rate, 2),
     )
 
     print(
-        "candidate model rate:",
+        "candidate:",
         round(candidate_rate, 2),
     )
 
     if candidate_rate <= current_rate:
+
         print(
-            "improver: candidate rejected"
+            "candidate rejected"
         )
+
         return False
 
     save_candidate_model(
@@ -145,8 +211,14 @@ def improve_model(data):
 
     promote_candidate_model()
 
+    state = load_state()
+
+    state["model_version"] += 1
+
+    save_state(state)
+
     print(
-        "improver: candidate promoted"
+        "candidate promoted"
     )
 
     return True

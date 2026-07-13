@@ -2,11 +2,11 @@
   "id": "20260713_1440",
   "entry_time": "2026-07-13T14:40:00+01:00",
   "entry_time_jst": "2026-07-13T22:40:00+09:00",
-  "entry_close": 162.1699981689453,
+  "entry_close": 162.20799255371094,
   "signal": "SKIP",
   "raw_signal": "LOW",
   "skip_reason": "SKIP_TREND_CHANGE",
-  "up_prob": 0.29772731510951345,
-  "down_prob": 0.7022726848904866,
-  "confidence": 0.7022726848904866
+  "up_prob": 0.19026813006058205,
+  "down_prob": 0.8097318699394179,
+  "confidence": 0.8097318699394179
 }

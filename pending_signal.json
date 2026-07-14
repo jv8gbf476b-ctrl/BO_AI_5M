@@ -1,12 +1,12 @@
 {
-  "id": "20260714_2045",
-  "entry_time": "2026-07-14T20:45:00+01:00",
-  "entry_time_jst": "2026-07-15T04:45:00+09:00",
-  "entry_close": 162.13800048828125,
-  "signal": "HIGH",
-  "raw_signal": "HIGH",
-  "skip_reason": "",
-  "up_prob": 0.7545623538999813,
-  "down_prob": 0.24543764610001872,
-  "confidence": 0.7545623538999813
+  "id": "20260714_2050",
+  "entry_time": "2026-07-14T20:50:00+01:00",
+  "entry_time_jst": "2026-07-15T04:50:00+09:00",
+  "entry_close": 162.16900634765625,
+  "signal": "SKIP",
+  "raw_signal": "LOW",
+  "skip_reason": "SKIP_TREND_CHANGE",
+  "up_prob": 0.4721812714359946,
+  "down_prob": 0.5278187285640055,
+  "confidence": 0.5278187285640055
 }

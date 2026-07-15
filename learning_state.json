@@ -6,8 +6,9 @@
     600,
     900,
     1200,
-    1500
+    1500,
+    1800
   ],
   "model_version": 3,
-  "last_improve": 1500
+  "last_improve": 1800
 }

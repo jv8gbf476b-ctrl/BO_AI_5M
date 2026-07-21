@@ -10,8 +10,9 @@
     1800,
     2100,
     2400,
-    2700
+    2700,
+    3000
   ],
-  "model_version": 6,
-  "last_improve": 2700
+  "model_version": 7,
+  "last_improve": 3000
 }

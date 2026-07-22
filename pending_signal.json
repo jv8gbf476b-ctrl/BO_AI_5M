@@ -2,11 +2,11 @@
   "id": "20260722_1430",
   "entry_time": "2026-07-22T14:30:00+01:00",
   "entry_time_jst": "2026-07-22T22:30:00+09:00",
-  "entry_close": 163.03900146484375,
+  "entry_close": 163.031005859375,
   "signal": "SKIP",
   "raw_signal": "HIGH",
   "skip_reason": "SKIP_TREND_CHANGE",
-  "up_prob": 0.549156706468839,
-  "down_prob": 0.45084329353116104,
-  "confidence": 0.549156706468839
+  "up_prob": 0.5898673016471464,
+  "down_prob": 0.4101326983528536,
+  "confidence": 0.5898673016471464
 }

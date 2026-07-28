@@ -2,11 +2,11 @@
   "id": "20260729_0015",
   "entry_time": "2026-07-29T00:15:00+01:00",
   "entry_time_jst": "2026-07-29T08:15:00+09:00",
-  "entry_close": 163.8509979248047,
-  "signal": "LOW",
-  "raw_signal": "LOW",
+  "entry_close": 163.86199951171875,
+  "signal": "HIGH",
+  "raw_signal": "HIGH",
   "skip_reason": "",
-  "up_prob": 0.47472372326408674,
-  "down_prob": 0.5252762767359133,
-  "confidence": 0.5252762767359133
+  "up_prob": 0.5577252350128876,
+  "down_prob": 0.4422747649871124,
+  "confidence": 0.5577252350128876
 }

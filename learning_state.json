@@ -18,8 +18,9 @@
     4200,
     4500,
     4800,
-    5100
+    5100,
+    5400
   ],
-  "model_version": 13,
-  "last_improve": 5100
+  "model_version": 14,
+  "last_improve": 5400
 }

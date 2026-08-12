@@ -2,11 +2,11 @@
   "id": "20260812_0700",
   "entry_time": "2026-08-12T07:00:00+01:00",
   "entry_time_jst": "2026-08-12T15:00:00+09:00",
-  "entry_close": 159.39999389648438,
+  "entry_close": 159.4040069580078,
   "signal": "SKIP",
-  "raw_signal": "HIGH",
+  "raw_signal": "LOW",
   "skip_reason": "SKIP_WEAK_EDGE",
-  "up_prob": 0.5130267638263915,
-  "down_prob": 0.48697323617360855,
-  "confidence": 0.5130267638263915
+  "up_prob": 0.48802388439555155,
+  "down_prob": 0.5119761156044484,
+  "confidence": 0.5119761156044484
 }

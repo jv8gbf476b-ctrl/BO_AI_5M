@@ -26,8 +26,9 @@
     6600,
     6900,
     7200,
-    7500
+    7500,
+    7800
   ],
-  "model_version": 21,
-  "last_improve": 7500
+  "model_version": 22,
+  "last_improve": 7800
 }

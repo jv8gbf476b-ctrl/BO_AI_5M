@@ -29,8 +29,9 @@
     7500,
     7800,
     8100,
-    8400
+    8400,
+    8700
   ],
-  "model_version": 24,
-  "last_improve": 8400
+  "model_version": 25,
+  "last_improve": 8700
 }

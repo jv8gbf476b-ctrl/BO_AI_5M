@@ -39,6 +39,10 @@ from research.walkforward_lab import (
     make_report as make_walkforward_report,
 )
 
+from research.candidate_lab import (
+    make_report as make_candidate_report,
+)
+
 
 def print_separator():
 
@@ -76,6 +80,12 @@ def main():
 
     print(
         make_walkforward_report()
+    )
+
+    print_separator()
+
+    print(
+        make_candidate_report()
     )
 
     print()

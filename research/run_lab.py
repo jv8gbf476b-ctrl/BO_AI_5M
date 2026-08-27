@@ -43,6 +43,10 @@ from research.candidate_lab import (
     make_report as make_candidate_report,
 )
 
+from research.live_test import (
+    make_live_report,
+)
+
 
 def print_separator():
 
@@ -86,6 +90,12 @@ def main():
 
     print(
         make_candidate_report()
+    )
+
+    print_separator()
+
+    print(
+        make_live_report()
     )
 
     print()

@@ -31,6 +31,19 @@ from research.confidence_deep_lab import (
     make_report as make_deep_report,
 )
 
+from research.validation_lab import (
+    make_report as make_validation_report,
+)
+
+
+def print_separator():
+
+    print()
+    print(
+        "=============================="
+    )
+    print()
+
 
 def main():
 
@@ -39,25 +52,23 @@ def main():
     )
 
     print()
-
     print(
         make_confidence_report()
     )
 
-    print()
-
-    print(
-        "=============================="
-    )
-
-    print()
+    print_separator()
 
     print(
         make_deep_report()
     )
 
-    print()
+    print_separator()
 
+    print(
+        make_validation_report()
+    )
+
+    print()
     print(
         "===== AI LAB END ====="
     )

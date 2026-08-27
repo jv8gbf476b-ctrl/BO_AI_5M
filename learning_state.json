@@ -35,8 +35,9 @@
     9300,
     9600,
     9900,
-    10200
+    10200,
+    10500
   ],
-  "model_version": 30,
-  "last_improve": 10200
+  "model_version": 31,
+  "last_improve": 10500
 }

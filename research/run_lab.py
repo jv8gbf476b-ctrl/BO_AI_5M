@@ -10,8 +10,6 @@ import os
 import sys
 
 
-# BO_AI_5M のルートフォルダを
-# Pythonの読み込み対象に追加
 ROOT_DIR = os.path.dirname(
     os.path.dirname(
         os.path.abspath(__file__)
@@ -29,6 +27,10 @@ from research.confidence_lab import (
     make_confidence_report,
 )
 
+from research.confidence_deep_lab import (
+    make_report as make_deep_report,
+)
+
 
 def main():
 
@@ -36,11 +38,25 @@ def main():
         "===== AI LAB START ====="
     )
 
-    report = (
+    print()
+
+    print(
         make_confidence_report()
     )
 
-    print(report)
+    print()
+
+    print(
+        "=============================="
+    )
+
+    print()
+
+    print(
+        make_deep_report()
+    )
+
+    print()
 
     print(
         "===== AI LAB END ====="

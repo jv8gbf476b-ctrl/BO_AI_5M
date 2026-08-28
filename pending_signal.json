@@ -6,7 +6,7 @@
   "signal": "SKIP",
   "raw_signal": "HIGH",
   "skip_reason": "SKIP_TREND_CHANGE",
-  "up_prob": 0.6263827653759527,
-  "down_prob": 0.3736172346240473,
-  "confidence": 0.6263827653759527
+  "up_prob": 0.686563689922561,
+  "down_prob": 0.313436310077439,
+  "confidence": 0.686563689922561
 }

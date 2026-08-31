@@ -1,12 +1,12 @@
 {
-  "id": "20260831_0950",
-  "entry_time": "2026-08-31T09:50:00+01:00",
-  "entry_time_jst": "2026-08-31T17:50:00+09:00",
-  "entry_close": 159.6739959716797,
-  "signal": "SKIP",
+  "id": "20260831_0955",
+  "entry_time": "2026-08-31T09:55:00+01:00",
+  "entry_time_jst": "2026-08-31T17:55:00+09:00",
+  "entry_close": 159.73300170898438,
+  "signal": "LOW",
   "raw_signal": "LOW",
-  "skip_reason": "SKIP_WEAK_EDGE",
-  "up_prob": 0.49755770017072953,
-  "down_prob": 0.5024422998292705,
-  "confidence": 0.5024422998292705
+  "skip_reason": "",
+  "up_prob": 0.3537119178651484,
+  "down_prob": 0.6462880821348516,
+  "confidence": 0.6462880821348516
 }

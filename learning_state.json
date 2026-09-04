@@ -41,8 +41,9 @@
     11100,
     11400,
     11700,
-    12000
+    12000,
+    12300
   ],
-  "model_version": 36,
-  "last_improve": 12000
+  "model_version": 37,
+  "last_improve": 12300
 }

@@ -1,0 +1,26 @@
+name: ZERO_BACKTEST
+
+on:
+  workflow_dispatch:
+
+jobs:
+  backtest:
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Setup Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.11"
+
+      - name: Install packages
+        run: |
+          pip install yfinance lightgbm pandas scikit-learn requests
+
+      - name: Run ZERO Backtest
+        run: |
+          python backtest_zero.py

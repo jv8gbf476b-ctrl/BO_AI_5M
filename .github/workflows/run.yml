@@ -8,7 +8,7 @@ permissions:
 
 concurrency:
   group: bo-ai-5m-run
-  cancel-in-progress: true
+  cancel-in-progress: false
 
 jobs:
   run:
@@ -16,35 +16,87 @@ jobs:
     timeout-minutes: 4
 
     steps:
-      - uses: actions/checkout@v4
+      - name: Checkout
+        uses: actions/checkout@v4
         with:
           token: ${{ secrets.PAT_TOKEN }}
           fetch-depth: 0
 
-      - uses: actions/setup-python@v5
+      - name: Setup Python
+        uses: actions/setup-python@v5
         with:
           python-version: "3.11"
 
       - name: Install packages
-        run: pip install yfinance lightgbm pandas scikit-learn requests
+        run: |
+          pip install yfinance lightgbm pandas scikit-learn requests
 
       - name: Run BO_AI_5M
         env:
           BOT_TOKEN: ${{ secrets.BOT_TOKEN }}
           CHAT_ID: ${{ secrets.CHAT_ID }}
-        run: python main.py
+        run: |
+          python main.py
 
-      - name: Save history
+      - name: Save ZERO data
         run: |
           git config user.name "github-actions"
           git config user.email "github-actions@github.com"
 
-          git add -A
+          # Python一時ファイルは絶対保存しない
+          find . -type d -name "__pycache__" -prune -exec rm -rf {} +
+          find . -type f -name "*.pyc" -delete
+
+          # 実行結果を一時退避
+          mkdir -p /tmp/zero_state
+
+          if [ -f history.csv ]; then
+            cp history.csv /tmp/zero_state/history.csv
+          fi
+
+          if [ -f pending_signal.json ]; then
+            cp pending_signal.json /tmp/zero_state/pending_signal.json
+          fi
+
+          if [ -f learning_state.json ]; then
+            cp learning_state.json /tmp/zero_state/learning_state.json
+          fi
+
+          # モデルファイルがある場合も退避
+          find . -maxdepth 1 -type f \( -name "*.pkl" -o -name "*.joblib" \) \
+            -exec cp {} /tmp/zero_state/ \;
+
+          # GitHub上の最新版コードに合わせる
+          git fetch origin main
+          git reset --hard origin/main
+
+          # ZEROの実行結果だけ戻す
+          if [ -f /tmp/zero_state/history.csv ]; then
+            cp /tmp/zero_state/history.csv history.csv
+          fi
+
+          if [ -f /tmp/zero_state/pending_signal.json ]; then
+            cp /tmp/zero_state/pending_signal.json pending_signal.json
+          fi
+
+          if [ -f /tmp/zero_state/learning_state.json ]; then
+            cp /tmp/zero_state/learning_state.json learning_state.json
+          fi
+
+          find /tmp/zero_state -maxdepth 1 -type f \( -name "*.pkl" -o -name "*.joblib" \) \
+            -exec cp {} . \;
+
+          # 必要なデータだけ保存
+          git add history.csv || true
+          git add pending_signal.json || true
+          git add learning_state.json || true
+          git add '*.pkl' || true
+          git add '*.joblib' || true
 
           if git diff --cached --quiet; then
-            echo "No changes"
-          else
-            git commit -m "update Market Assistant learning"
-            git pull --rebase origin main
-            git push origin HEAD:main
+            echo "保存する変更はありません"
+            exit 0
           fi
+
+          git commit -m "update ZERO learning data"
+          git push origin HEAD:main

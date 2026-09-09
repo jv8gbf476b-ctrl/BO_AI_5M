@@ -2,9 +2,8 @@
 BO_AI_5M
 features.py
 
-ZERO v0.1
-特徴量作成
-未来データ誤学習対策
+ZERO v0.3
+日本時間統一版
 """
 
 import numpy as np
@@ -34,6 +33,24 @@ FEATURE_COLUMNS = [
 def build_features(data: pd.DataFrame):
 
     data = data.copy()
+
+    # =========================
+    # 時刻を日本時間に統一
+    # =========================
+
+    if data.index.tz is None:
+
+        data.index = (
+            data.index
+            .tz_localize("UTC")
+        )
+
+    jst_index = (
+        data.index
+        .tz_convert(
+            "Asia/Tokyo"
+        )
+    )
 
     # =========================
     # 移動平均
@@ -76,7 +93,7 @@ def build_features(data: pd.DataFrame):
     )
 
     # =========================
-    # リターン
+    # 値動き
     # =========================
 
     data["Return"] = (
@@ -98,7 +115,10 @@ def build_features(data: pd.DataFrame):
     # RSI
     # =========================
 
-    delta = data["Close"].diff()
+    delta = (
+        data["Close"]
+        .diff()
+    )
 
     gain = (
         delta
@@ -158,25 +178,19 @@ def build_features(data: pd.DataFrame):
     )
 
     # =========================
-    # 時間
+    # 日本時間
     # =========================
 
     data["Hour"] = (
-        data.index.hour
+        jst_index.hour
     )
 
     data["DayOfWeek"] = (
-        data.index.dayofweek
+        jst_index.dayofweek
     )
 
     # =========================
-    # 正解ラベル
-    #
-    # 重要：
-    # 未来がまだ存在しない最新足を
-    # LOWとして学習しない
-    #
-    # 同値も学習から除外
+    # 5分後の正解
     # =========================
 
     next_close = (
@@ -188,10 +202,12 @@ def build_features(data: pd.DataFrame):
         next_close.isna(),
         np.nan,
         np.where(
-            next_close > data["Close"],
+            next_close
+            > data["Close"],
             1.0,
             np.where(
-                next_close < data["Close"],
+                next_close
+                < data["Close"],
                 0.0,
                 np.nan,
             ),
@@ -199,10 +215,7 @@ def build_features(data: pd.DataFrame):
     )
 
     # =========================
-    # 特徴量として使えない行だけ削除
-    #
-    # TargetがNaNの最新足は残す
-    # → 最新予測に必要
+    # 特徴量不足だけ削除
     # =========================
 
     data = (

@@ -1,20 +1,19 @@
 """
-ZERO v0.1
+ZERO v0.2
 backtest_zero.py
 
-過去5分足を使った
-未学習期間バックテスト
+ウォークフォワード検証版
 
-目的：
-・AI全体の実力
-・HIGH / LOW別
-・相場状態別
-・時間帯別
-・信頼度別
-・SKIP別
-・条件組み合わせ別
+過去で学習
+↓
+次の期間だけでテスト
+↓
+学習期間を前へ進める
+↓
+また次の期間をテスト
 
-を未来側30%だけで検証する
+これを繰り返して、
+期間を変えても強い条件だけ探す
 """
 
 import pandas as pd
@@ -33,106 +32,29 @@ from filter import (
 )
 
 
-TRAIN_RATIO = 0.70
+# =========================
+# 設定
+# =========================
 
-# 組み合わせ条件を表示する最低件数
-MIN_COMBO_COUNT = 30
+INITIAL_TRAIN_RATIO = 0.50
 
-# 注目する最低勝率
+# 1回ごとの未来テスト期間
+TEST_BLOCK_SIZE = 1000
+
+# 条件判定に必要な最低総件数
+MIN_TOTAL_COUNT = 50
+
+# 1期間あたり最低件数
+MIN_BLOCK_COUNT = 8
+
+# 採用候補の最低平均勝率
 TARGET_WIN_RATE = 55.0
 
+# 最低何期間で出現したか
+MIN_BLOCKS = 3
 
-def train_backtest_model(data):
-
-    labeled = (
-        data
-        .replace(
-            [np.inf, -np.inf],
-            np.nan,
-        )
-        .dropna(
-            subset=FEATURES + ["Target"]
-        )
-        .copy()
-    )
-
-    total = len(labeled)
-
-    split_index = int(
-        total * TRAIN_RATIO
-    )
-
-    train_data = (
-        labeled
-        .iloc[:split_index]
-        .copy()
-    )
-
-    test_data = (
-        labeled
-        .iloc[split_index:]
-        .copy()
-    )
-
-    if len(train_data) < 1000:
-        raise RuntimeError(
-            "学習データが少なすぎます"
-        )
-
-    if len(test_data) < 300:
-        raise RuntimeError(
-            "検証データが少なすぎます"
-        )
-
-    model = create_model()
-
-    model.fit(
-        train_data[FEATURES],
-        train_data["Target"].astype(int),
-    )
-
-    test_start_time = (
-        test_data.index[0]
-    )
-
-    return (
-        model,
-        train_data,
-        test_data,
-        test_start_time,
-    )
-
-
-def make_prediction(
-    model,
-    row,
-):
-
-    probabilities = (
-        model
-        .predict_proba(
-            row[FEATURES]
-        )[0]
-    )
-
-    down_prob = float(
-        probabilities[0]
-    )
-
-    up_prob = float(
-        probabilities[1]
-    )
-
-    confidence = max(
-        up_prob,
-        down_prob,
-    )
-
-    return {
-        "up_prob": up_prob,
-        "down_prob": down_prob,
-        "confidence": confidence,
-    }
+# 期間ごとの最低勝率
+MIN_BLOCK_WIN_RATE = 50.0
 
 
 def confidence_band(value):
@@ -179,274 +101,88 @@ def edge_band(value):
     return "30+"
 
 
-def calculate_summary(
-    df,
-    group_column,
+def make_prediction(
+    model,
+    row,
 ):
 
-    rows = []
-
-    for value, group in df.groupby(
-        group_column,
-        dropna=False,
-    ):
-
-        trade = group[
-            group["signal"] != "SKIP"
-        ]
-
-        wins = int(
-            (
-                trade["result"]
-                == "WIN"
-            ).sum()
-        )
-
-        losses = int(
-            (
-                trade["result"]
-                == "LOSE"
-            ).sum()
-        )
-
-        total = (
-            wins
-            + losses
-        )
-
-        if total == 0:
-            rate = 0.0
-
-        else:
-            rate = (
-                wins
-                / total
-                * 100
-            )
-
-        rows.append({
-            group_column: value,
-            "件数": total,
-            "勝ち": wins,
-            "負け": losses,
-            "勝率": rate,
-        })
-
-    result = pd.DataFrame(
-        rows
+    probabilities = (
+        model
+        .predict_proba(
+            row[FEATURES]
+        )[0]
     )
 
-    if not result.empty:
-        result = result.sort_values(
-            [
-                "勝率",
-                "件数",
-            ],
-            ascending=[
-                False,
-                False,
-            ],
-        )
-
-    return result
-
-
-def calculate_raw_skip_summary(df):
-
-    skip_data = df[
-        df["signal"]
-        == "SKIP"
-    ].copy()
-
-    if skip_data.empty:
-        return pd.DataFrame()
-
-    rows = []
-
-    for reason, group in (
-        skip_data.groupby(
-            "skip_reason"
-        )
-    ):
-
-        wins_if_entered = (
-            group[
-                "raw_correct"
-            ]
-            .sum()
-        )
-
-        total = len(group)
-
-        rate = (
-            wins_if_entered
-            / total
-            * 100
-            if total
-            else 0.0
-        )
-
-        rows.append({
-            "SKIP理由": reason,
-            "件数": total,
-            "入っていた場合の勝ち": (
-                int(
-                    wins_if_entered
-                )
-            ),
-            "入っていた場合の勝率": (
-                rate
-            ),
-        })
-
-    result = pd.DataFrame(
-        rows
+    down_prob = float(
+        probabilities[0]
     )
 
-    return result.sort_values(
-        "入っていた場合の勝率"
+    up_prob = float(
+        probabilities[1]
     )
 
+    confidence = max(
+        up_prob,
+        down_prob,
+    )
 
-def show_table(
-    title,
-    df,
-    max_rows=30,
+    return {
+        "up_prob": up_prob,
+        "down_prob": down_prob,
+        "confidence": confidence,
+    }
+
+
+def run_single_block(
+    full_data,
+    train_end,
+    test_end,
+    block_id,
 ):
 
-    print()
-    print(
-        "=" * 70
-    )
-
-    print(title)
-
-    print(
-        "=" * 70
-    )
-
-    if df.empty:
-        print(
-            "データなし"
-        )
-        return
-
-    display = (
-        df
-        .head(max_rows)
+    train_data = (
+        full_data
+        .iloc[:train_end]
         .copy()
     )
 
-    for column in display.columns:
-
-        if (
-            "勝率" in column
-        ):
-            display[column] = (
-                display[column]
-                .map(
-                    lambda x:
-                    f"{x:.2f}%"
-                )
-            )
-
-    print(
-        display
-        .to_string(
-            index=False
-        )
+    test_data = (
+        full_data
+        .iloc[
+            train_end:test_end
+        ]
+        .copy()
     )
 
+    if len(test_data) == 0:
+        return []
 
-def main():
+    model = create_model()
 
-    print(
-        "START ZERO BACKTEST"
+    model.fit(
+        train_data[FEATURES],
+        train_data["Target"].astype(int),
     )
-
-    # =========================
-    # データ取得
-    # =========================
-
-    data = load_data()
-
-    print(
-        "raw data:",
-        len(data),
-    )
-
-    data = build_features(
-        data
-    )
-
-    print(
-        "feature data:",
-        len(data),
-    )
-
-    # =========================
-    # 学習期間 / 試験期間
-    # =========================
-
-    (
-        model,
-        train_data,
-        test_data,
-        test_start_time,
-    ) = train_backtest_model(
-        data
-    )
-
-    print()
-    print(
-        "学習データ:",
-        len(train_data),
-    )
-
-    print(
-        "未来側テスト:",
-        len(test_data),
-    )
-
-    print(
-        "テスト開始:",
-        test_start_time,
-    )
-
-    # =========================
-    # 過去再現
-    # =========================
 
     results = []
 
-    test_indices = set(
-        test_data.index
-    )
+    start_position = train_end
+
+    end_position = test_end
 
     for position in range(
-        len(data)
+        start_position,
+        end_position,
     ):
 
-        current_time = (
-            data.index[position]
-        )
-
-        if (
-            current_time
-            not in test_indices
-        ):
-            continue
-
         current_row = (
-            data
+            full_data
             .iloc[[position]]
         )
 
         target_value = (
-            data
-            .iloc[position][
-                "Target"
-            ]
+            full_data
+            .iloc[position]["Target"]
         )
 
         if pd.isna(
@@ -454,10 +190,8 @@ def main():
         ):
             continue
 
-        # この時点までのデータだけ渡す
-        # 未来情報は一切入れない
         historical_data = (
-            data
+            full_data
             .iloc[
                 :position + 1
             ]
@@ -488,9 +222,7 @@ def main():
 
         actual = (
             "HIGH"
-            if int(
-                target_value
-            ) == 1
+            if int(target_value) == 1
             else "LOW"
         )
 
@@ -501,9 +233,7 @@ def main():
 
         if signal == "SKIP":
 
-            result = (
-                "NO_TRADE"
-            )
+            result = "NO_TRADE"
 
         elif signal == actual:
 
@@ -513,20 +243,23 @@ def main():
 
             result = "LOSE"
 
-        edge = abs(
-            prediction["up_prob"]
-            - prediction["down_prob"]
-        )
-
         latest = (
             historical_data
             .iloc[-1]
         )
 
+        edge = abs(
+            prediction["up_prob"]
+            - prediction["down_prob"]
+        )
+
         results.append({
 
+            "block_id": block_id,
+
             "time": (
-                current_time
+                full_data
+                .index[position]
             ),
 
             "hour": int(
@@ -534,9 +267,7 @@ def main():
             ),
 
             "weekday": int(
-                latest[
-                    "DayOfWeek"
-                ]
+                latest["DayOfWeek"]
             ),
 
             "signal": signal,
@@ -610,49 +341,574 @@ def main():
             ),
         })
 
-    result_df = pd.DataFrame(
-        results
-    )
+    return results
 
-    if result_df.empty:
-        raise RuntimeError(
-            "バックテスト結果がありません"
-        )
 
-    # =========================
-    # 全体成績
-    # =========================
+def summarize_overall(df):
 
-    trades = result_df[
-        result_df["signal"]
+    trade = df[
+        df["signal"]
         != "SKIP"
     ]
 
     wins = int(
         (
-            trades["result"]
+            trade["result"]
             == "WIN"
         ).sum()
     )
 
     losses = int(
         (
-            trades["result"]
+            trade["result"]
             == "LOSE"
         ).sum()
     )
 
-    total_trades = (
-        wins
-        + losses
+    total = wins + losses
+
+    rate = (
+        wins / total * 100
+        if total
+        else 0.0
     )
 
-    win_rate = (
-        wins
-        / total_trades
-        * 100
-        if total_trades
-        else 0.0
+    return (
+        total,
+        wins,
+        losses,
+        rate,
+    )
+
+
+def build_combo_summary(
+    df,
+):
+
+    trade = (
+        df[
+            df["signal"]
+            != "SKIP"
+        ]
+        .copy()
+    )
+
+    combo_columns = [
+        "trend",
+        "volatility",
+        "raw_signal",
+        "hour",
+    ]
+
+    rows = []
+
+    grouped = (
+        trade
+        .groupby(
+            combo_columns
+        )
+    )
+
+    for combo, group in grouped:
+
+        trend = combo[0]
+        volatility = combo[1]
+        raw_signal = combo[2]
+        hour = combo[3]
+
+        total = len(group)
+
+        if total < MIN_TOTAL_COUNT:
+            continue
+
+        wins = int(
+            (
+                group["result"]
+                == "WIN"
+            ).sum()
+        )
+
+        overall_rate = (
+            wins
+            / total
+            * 100
+        )
+
+        block_rates = []
+
+        valid_blocks = 0
+
+        profitable_blocks = 0
+
+        for block_id, block_group in (
+            group.groupby(
+                "block_id"
+            )
+        ):
+
+            block_total = len(
+                block_group
+            )
+
+            if (
+                block_total
+                < MIN_BLOCK_COUNT
+            ):
+                continue
+
+            block_wins = int(
+                (
+                    block_group["result"]
+                    == "WIN"
+                ).sum()
+            )
+
+            block_rate = (
+                block_wins
+                / block_total
+                * 100
+            )
+
+            block_rates.append(
+                block_rate
+            )
+
+            valid_blocks += 1
+
+            if (
+                block_rate
+                >= MIN_BLOCK_WIN_RATE
+            ):
+                profitable_blocks += 1
+
+        if valid_blocks == 0:
+            continue
+
+        block_average = float(
+            np.mean(
+                block_rates
+            )
+        )
+
+        block_min = float(
+            np.min(
+                block_rates
+            )
+        )
+
+        block_max = float(
+            np.max(
+                block_rates
+            )
+        )
+
+        stable_ratio = (
+            profitable_blocks
+            / valid_blocks
+            * 100
+        )
+
+        rows.append({
+
+            "trend": trend,
+
+            "volatility": volatility,
+
+            "direction": raw_signal,
+
+            "hour": int(hour),
+
+            "total_count": total,
+
+            "wins": wins,
+
+            "overall_rate": (
+                overall_rate
+            ),
+
+            "valid_blocks": (
+                valid_blocks
+            ),
+
+            "profitable_blocks": (
+                profitable_blocks
+            ),
+
+            "stable_ratio": (
+                stable_ratio
+            ),
+
+            "block_average": (
+                block_average
+            ),
+
+            "block_min": (
+                block_min
+            ),
+
+            "block_max": (
+                block_max
+            ),
+        })
+
+    summary = pd.DataFrame(
+        rows
+    )
+
+    if summary.empty:
+        return summary
+
+    summary = (
+        summary
+        .sort_values(
+            [
+                "overall_rate",
+                "stable_ratio",
+                "total_count",
+            ],
+            ascending=[
+                False,
+                False,
+                False,
+            ],
+        )
+    )
+
+    return summary
+
+
+def show_combo_table(
+    df,
+):
+
+    print()
+    print(
+        "=" * 90
+    )
+
+    print(
+        "ウォークフォワード安定条件"
+    )
+
+    print(
+        "=" * 90
+    )
+
+    if df.empty:
+
+        print(
+            "条件なし"
+        )
+
+        return
+
+    candidate = df[
+
+        (
+            df["overall_rate"]
+            >= TARGET_WIN_RATE
+        )
+
+        &
+
+        (
+            df["valid_blocks"]
+            >= MIN_BLOCKS
+        )
+
+    ].copy()
+
+    if candidate.empty:
+
+        print(
+            "合格条件なし"
+        )
+
+        return
+
+    candidate = (
+        candidate
+        .sort_values(
+            [
+                "stable_ratio",
+                "overall_rate",
+                "total_count",
+            ],
+            ascending=[
+                False,
+                False,
+                False,
+            ],
+        )
+    )
+
+    display = (
+        candidate
+        .head(30)
+        .copy()
+    )
+
+    display[
+        "overall_rate"
+    ] = (
+        display[
+            "overall_rate"
+        ]
+        .map(
+            lambda x:
+            f"{x:.2f}%"
+        )
+    )
+
+    display[
+        "stable_ratio"
+    ] = (
+        display[
+            "stable_ratio"
+        ]
+        .map(
+            lambda x:
+            f"{x:.1f}%"
+        )
+    )
+
+    display[
+        "block_average"
+    ] = (
+        display[
+            "block_average"
+        ]
+        .map(
+            lambda x:
+            f"{x:.2f}%"
+        )
+    )
+
+    display[
+        "block_min"
+    ] = (
+        display[
+            "block_min"
+        ]
+        .map(
+            lambda x:
+            f"{x:.2f}%"
+        )
+    )
+
+    display[
+        "block_max"
+    ] = (
+        display[
+            "block_max"
+        ]
+        .map(
+            lambda x:
+            f"{x:.2f}%"
+        )
+    )
+
+    print(
+        display[
+            [
+                "trend",
+                "volatility",
+                "direction",
+                "hour",
+                "total_count",
+                "overall_rate",
+                "valid_blocks",
+                "profitable_blocks",
+                "stable_ratio",
+                "block_average",
+                "block_min",
+                "block_max",
+            ]
+        ]
+        .to_string(
+            index=False
+        )
+    )
+
+
+def main():
+
+    print(
+        "START ZERO WALK FORWARD"
+    )
+
+    data = load_data()
+
+    print(
+        "raw data:",
+        len(data),
+    )
+
+    data = build_features(
+        data
+    )
+
+    labeled = (
+        data
+        .replace(
+            [np.inf, -np.inf],
+            np.nan,
+        )
+        .dropna(
+            subset=FEATURES + ["Target"]
+        )
+        .copy()
+    )
+
+    total = len(
+        labeled
+    )
+
+    initial_train_size = int(
+        total
+        * INITIAL_TRAIN_RATIO
+    )
+
+    print(
+        "usable data:",
+        total,
+    )
+
+    print(
+        "initial train:",
+        initial_train_size,
+    )
+
+    all_results = []
+
+    block_id = 1
+
+    train_end = (
+        initial_train_size
+    )
+
+    while (
+        train_end
+        < total
+    ):
+
+        test_end = min(
+            train_end
+            + TEST_BLOCK_SIZE,
+            total,
+        )
+
+        print()
+        print(
+            "-" * 70
+        )
+
+        print(
+            "BLOCK:",
+            block_id,
+        )
+
+        print(
+            "train:",
+            train_end,
+        )
+
+        print(
+            "test:",
+            (
+                test_end
+                - train_end
+            ),
+        )
+
+        results = (
+            run_single_block(
+                labeled,
+                train_end,
+                test_end,
+                block_id,
+            )
+        )
+
+        block_df = (
+            pd.DataFrame(
+                results
+            )
+        )
+
+        if not block_df.empty:
+
+            (
+                total_trades,
+                wins,
+                losses,
+                rate,
+            ) = summarize_overall(
+                block_df
+            )
+
+            print(
+                "trade:",
+                total_trades,
+            )
+
+            print(
+                "WIN:",
+                wins,
+            )
+
+            print(
+                "LOSE:",
+                losses,
+            )
+
+            print(
+                "rate:",
+                f"{rate:.2f}%",
+            )
+
+            all_results.extend(
+                results
+            )
+
+        train_end = (
+            test_end
+        )
+
+        block_id += 1
+
+    result_df = (
+        pd.DataFrame(
+            all_results
+        )
+    )
+
+    if result_df.empty:
+
+        raise RuntimeError(
+            "ウォークフォワード結果なし"
+        )
+
+    print()
+    print(
+        "=" * 90
+    )
+
+    print(
+        "ZERO WALK FORWARD 全体"
+    )
+
+    print(
+        "=" * 90
+    )
+
+    (
+        total_trades,
+        wins,
+        losses,
+        overall_rate,
+    ) = summarize_overall(
+        result_df
     )
 
     skip_count = int(
@@ -662,26 +918,13 @@ def main():
         ).sum()
     )
 
-    print()
     print(
-        "=" * 70
-    )
-
-    print(
-        "ZERO 未学習期間バックテスト"
-    )
-
-    print(
-        "=" * 70
-    )
-
-    print(
-        "全判定数:",
+        "全判定:",
         len(result_df),
     )
 
     print(
-        "取引対象:",
+        "取引:",
         total_trades,
     )
 
@@ -702,219 +945,41 @@ def main():
 
     print(
         "勝率:",
-        f"{win_rate:.2f}%",
+        f"{overall_rate:.2f}%",
     )
 
-    # =========================
-    # 各条件
-    # =========================
-
-    show_table(
-        "HIGH / LOW別",
-        calculate_summary(
-            result_df,
-            "raw_signal",
-        ),
-    )
-
-    show_table(
-        "相場トレンド別",
-        calculate_summary(
-            result_df,
-            "trend",
-        ),
-    )
-
-    show_table(
-        "ボラティリティ別",
-        calculate_summary(
-            result_df,
-            "volatility",
-        ),
-    )
-
-    show_table(
-        "時間帯別",
-        calculate_summary(
-            result_df,
-            "hour",
-        ),
-        max_rows=24,
-    )
-
-    show_table(
-        "AI信頼度別",
-        calculate_summary(
-            result_df,
-            "confidence_band",
-        ),
-    )
-
-    show_table(
-        "予測差別",
-        calculate_summary(
-            result_df,
-            "edge_band",
-        ),
-    )
-
-    show_table(
-        "SKIPの検証",
-        calculate_raw_skip_summary(
+    combo_summary = (
+        build_combo_summary(
             result_df
-        ),
-    )
-
-    # =========================
-    # 組み合わせ探索
-    # =========================
-
-    combo_rows = []
-
-    trade_only = result_df[
-        result_df["signal"]
-        != "SKIP"
-    ].copy()
-
-    grouped = (
-        trade_only
-        .groupby(
-            [
-                "trend",
-                "volatility",
-                "raw_signal",
-                "hour",
-            ]
         )
     )
 
-    for (
-        trend,
-        volatility,
-        raw_signal,
-        hour,
-    ), group in grouped:
-
-        total = len(group)
-
-        if (
-            total
-            < MIN_COMBO_COUNT
-        ):
-            continue
-
-        wins_combo = int(
-            (
-                group["result"]
-                == "WIN"
-            ).sum()
-        )
-
-        rate = (
-            wins_combo
-            / total
-            * 100
-        )
-
-        combo_rows.append({
-
-            "トレンド": (
-                trend
-            ),
-
-            "ボラ": (
-                volatility
-            ),
-
-            "方向": (
-                raw_signal
-            ),
-
-            "時間": (
-                hour
-            ),
-
-            "件数": (
-                total
-            ),
-
-            "勝ち": (
-                wins_combo
-            ),
-
-            "勝率": (
-                rate
-            ),
-        })
-
-    combo_df = pd.DataFrame(
-        combo_rows
+    show_combo_table(
+        combo_summary
     )
-
-    if not combo_df.empty:
-
-        combo_df = (
-            combo_df
-            .sort_values(
-                [
-                    "勝率",
-                    "件数",
-                ],
-                ascending=[
-                    False,
-                    False,
-                ],
-            )
-        )
-
-        strong_combo = (
-            combo_df[
-                combo_df["勝率"]
-                >= TARGET_WIN_RATE
-            ]
-        )
-
-    else:
-
-        strong_combo = (
-            pd.DataFrame()
-        )
-
-    show_table(
-        (
-            f"勝率{TARGET_WIN_RATE:.0f}%以上 "
-            f"かつ{MIN_COMBO_COUNT}件以上の条件"
-        ),
-        strong_combo,
-        max_rows=50,
-    )
-
-    # =========================
-    # CSV保存
-    # =========================
 
     result_df.to_csv(
-        "zero_backtest_results.csv",
+        "zero_walk_forward_results.csv",
         index=False,
     )
 
-    combo_df.to_csv(
-        "zero_backtest_combos.csv",
+    combo_summary.to_csv(
+        "zero_walk_forward_combos.csv",
         index=False,
     )
 
     print()
     print(
-        "zero_backtest_results.csv 保存"
+        "zero_walk_forward_results.csv 保存"
     )
 
     print(
-        "zero_backtest_combos.csv 保存"
+        "zero_walk_forward_combos.csv 保存"
     )
 
     print()
     print(
-        "END ZERO BACKTEST"
+        "END ZERO WALK FORWARD"
     )
 
 

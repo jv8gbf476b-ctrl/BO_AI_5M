@@ -2,9 +2,10 @@
 BO_AI_5M
 grading.py
 
-ZERO v0.1
-5分後採点
-ZERO特徴量履歴保存
+ZERO v0.4
+通常採点
++
+ZERO仮想実戦採点
 """
 
 from zoneinfo import (
@@ -19,6 +20,10 @@ from history import (
 
 from pending import (
     clear_pending,
+)
+
+from telegram_bot import (
+    send_telegram,
 )
 
 
@@ -62,9 +67,9 @@ def grade_pending(
 
         return data
 
-    # =========================
-    # 次の5分足
-    # =========================
+    # =====================================
+    # 5分後
+    # =====================================
 
     result_time = (
         future.index[0]
@@ -82,9 +87,9 @@ def grade_pending(
         ]
     )
 
-    signal = pending[
-        "signal"
-    ]
+    signal = (
+        pending["signal"]
+    )
 
     raw_signal = (
         pending.get(
@@ -100,9 +105,9 @@ def grade_pending(
         )
     )
 
-    # =========================
+    # =====================================
     # 実際の方向
-    # =========================
+    # =====================================
 
     if (
         result_close
@@ -122,9 +127,9 @@ def grade_pending(
 
         actual = "FLAT"
 
-    # =========================
-    # 勝敗
-    # =========================
+    # =====================================
+    # 通常AI採点
+    # =====================================
 
     if signal == "SKIP":
 
@@ -142,14 +147,67 @@ def grade_pending(
 
         result = "LOSE"
 
-    # =========================
+    # =====================================
+    # ZERO仮想実戦採点
+    # =====================================
+
+    zero_entry = bool(
+        pending.get(
+            "zero_entry",
+            False,
+        )
+    )
+
+    zero_rule = (
+        pending.get(
+            "zero_rule",
+            "",
+        )
+    )
+
+    zero_direction = (
+        pending.get(
+            "zero_direction",
+            "",
+        )
+    )
+
+    if not zero_entry:
+
+        zero_result = (
+            "NO_ENTRY"
+        )
+
+    elif actual == "FLAT":
+
+        zero_result = (
+            "FLAT"
+        )
+
+    elif (
+        zero_direction
+        == actual
+    ):
+
+        zero_result = (
+            "WIN"
+        )
+
+    else:
+
+        zero_result = (
+            "LOSE"
+        )
+
+    # =====================================
     # 履歴
-    # =========================
+    # =====================================
 
     row = {
 
-        # 基本
-        "id": pending["id"],
+        "id": (
+            pending["id"]
+        ),
 
         "entry_time": (
             pending[
@@ -167,7 +225,7 @@ def grade_pending(
             .isoformat()
         ),
 
-        # 判定
+        # 通常AI
         "signal": signal,
 
         "raw_signal": (
@@ -183,6 +241,23 @@ def grade_pending(
         ),
 
         "result": result,
+
+        # ZERO仮想実戦
+        "zero_entry": (
+            zero_entry
+        ),
+
+        "zero_rule": (
+            zero_rule
+        ),
+
+        "zero_direction": (
+            zero_direction
+        ),
+
+        "zero_result": (
+            zero_result
+        ),
 
         # 価格
         "entry_close": (
@@ -224,7 +299,7 @@ def grade_pending(
             )
         ),
 
-        # ZERO相場状態
+        # 相場
         "market_trend": (
             pending.get(
                 "market_trend"
@@ -349,16 +424,6 @@ def grade_pending(
     )
 
     print(
-        "raw_signal:",
-        raw_signal,
-    )
-
-    print(
-        "skip_reason:",
-        skip_reason,
-    )
-
-    print(
         "actual:",
         actual,
     )
@@ -367,6 +432,54 @@ def grade_pending(
         "result:",
         result,
     )
+
+    print(
+        "ZERO ENTRY:",
+        zero_entry,
+    )
+
+    print(
+        "ZERO RULE:",
+        zero_rule
+        if zero_rule
+        else "NONE",
+    )
+
+    print(
+        "ZERO RESULT:",
+        zero_result,
+    )
+
+    # =====================================
+    # 仮想実戦結果通知
+    # =====================================
+
+    if zero_entry:
+
+        send_telegram(
+            f"""
+🧪 ZERO 仮想実戦結果
+
+ルール : {zero_rule}
+
+方向 :
+{zero_direction}
+
+結果 :
+{"✅ WIN" if zero_result == "WIN" else "❌ LOSE" if zero_result == "LOSE" else "➖ FLAT"}
+
+開始価格 :
+{entry_close:.5f}
+
+5分後 :
+{result_close:.5f}
+
+実際 :
+{actual}
+
+※実際のお金は使用していません
+"""
+        )
 
     clear_pending()
 

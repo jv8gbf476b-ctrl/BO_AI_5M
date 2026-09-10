@@ -2,8 +2,8 @@
 Market Assistant
 main.py
 
-ZERO v0.1
-学習・予測・相場情報保存
+ZERO v0.4
+仮想実戦モード
 """
 
 from data import load_data
@@ -52,12 +52,86 @@ from config import (
 )
 
 
+# =====================================
+# ZERO 仮想実戦ルール
+# =====================================
+
+ZERO_RULES = [
+
+    {
+        "name": "ZERO_A",
+        "hour": 11,
+        "trend": "UP",
+        "volatility": "NORMAL",
+        "direction": "LOW",
+    },
+
+    {
+        "name": "ZERO_B",
+        "hour": 23,
+        "trend": "DOWN",
+        "volatility": "NORMAL",
+        "direction": "HIGH",
+    },
+
+]
+
+
+def detect_zero_entry(
+    latest,
+    signal,
+    raw_signal,
+    market,
+):
+
+    # 既存フィルターでSKIPなら
+    # 仮想実戦もしない
+    if signal == "SKIP":
+
+        return (
+            False,
+            "",
+        )
+
+    hour = int(
+        latest["Hour"]
+    )
+
+    for rule in ZERO_RULES:
+
+        if (
+            hour
+            == rule["hour"]
+
+            and market["trend"]
+            == rule["trend"]
+
+            and market["volatility"]
+            == rule["volatility"]
+
+            and raw_signal
+            == rule["direction"]
+        ):
+
+            return (
+                True,
+                rule["name"],
+            )
+
+    return (
+        False,
+        "",
+    )
+
+
 def save_signal(
     data,
     result,
 ):
 
-    latest = data.iloc[-1]
+    latest = (
+        data.iloc[-1]
+    )
 
     latest_time = (
         data.index[-1]
@@ -82,6 +156,20 @@ def save_signal(
     edge = abs(
         result["up_prob"]
         - result["down_prob"]
+    )
+
+    # =====================================
+    # ZERO 仮想ENTRY判定
+    # =====================================
+
+    (
+        zero_entry,
+        zero_rule,
+    ) = detect_zero_entry(
+        latest,
+        signal,
+        raw_signal,
+        market,
     )
 
     payload = {
@@ -115,7 +203,7 @@ def save_signal(
         ),
 
         # =====================
-        # 判定
+        # 通常判定
         # =====================
 
         "signal": signal,
@@ -145,7 +233,25 @@ def save_signal(
         ),
 
         # =====================
-        # ZERO相場状態
+        # ZERO 仮想実戦
+        # =====================
+
+        "zero_entry": bool(
+            zero_entry
+        ),
+
+        "zero_rule": (
+            zero_rule
+        ),
+
+        "zero_direction": (
+            raw_signal
+            if zero_entry
+            else ""
+        ),
+
+        # =====================
+        # 相場状態
         # =====================
 
         "market_trend": (
@@ -234,8 +340,7 @@ def save_signal(
     )
 
     print(
-        "saved "
-        "pending_signal.json"
+        "saved pending_signal.json"
     )
 
     print(
@@ -269,11 +374,32 @@ def save_signal(
     )
 
     print(
+        "JST hour:",
+        payload["Hour"],
+    )
+
+    print(
         "close:",
         payload[
             "entry_close"
         ],
     )
+
+    print(
+        "ZERO ENTRY:",
+        zero_entry,
+    )
+
+    print(
+        "ZERO RULE:",
+        zero_rule
+        if zero_rule
+        else "NONE",
+    )
+
+    # =====================================
+    # 通常通知
+    # =====================================
 
     if ENABLE_SIGNAL_NOTIFICATION:
 
@@ -286,6 +412,8 @@ def save_signal(
 
 相場 : {market["trend"]}
 ボラ : {market["volatility"]}
+
+日本時間 : {int(latest["Hour"])}時
 
 SKIP理由 :
 {skip_reason if skip_reason else "なし"}
@@ -304,6 +432,37 @@ RSI :
 """
         )
 
+    # =====================================
+    # ZERO仮想ENTRYだけは通知
+    # =====================================
+
+    if zero_entry:
+
+        send_telegram(
+            f"""
+🧪 ZERO 仮想ENTRY
+
+ルール : {zero_rule}
+
+方向 : {raw_signal}
+
+日本時間 :
+{int(latest["Hour"])}時
+
+相場 :
+{market["trend"]}
+
+ボラ :
+{market["volatility"]}
+
+エントリー価格 :
+{float(latest["Close"]):.5f}
+
+※実際のお金は使いません
+5分後に自動採点します。
+"""
+        )
+
 
 def main():
 
@@ -312,9 +471,9 @@ def main():
         "Market Assistant"
     )
 
-    # =========================
+    # =====================================
     # データ取得
-    # =========================
+    # =====================================
 
     data = load_data()
 
@@ -323,9 +482,9 @@ def main():
         len(data),
     )
 
-    # =========================
+    # =====================================
     # 特徴量
-    # =========================
+    # =====================================
 
     data = build_features(
         data
@@ -345,9 +504,9 @@ def main():
         latest_time,
     )
 
-    # =========================
-    # 前回判定の採点
-    # =========================
+    # =====================================
+    # 前回判定採点
+    # =====================================
 
     pending = (
         load_pending()
@@ -371,9 +530,9 @@ def main():
             "grading checked"
         )
 
-    # =========================
+    # =====================================
     # 自己改善
-    # =========================
+    # =====================================
 
     improved = (
         improve_model(
@@ -386,9 +545,9 @@ def main():
         improved,
     )
 
-    # =========================
+    # =====================================
     # モデル
-    # =========================
+    # =====================================
 
     model = get_model(
         data
@@ -398,9 +557,9 @@ def main():
         "model ready"
     )
 
-    # =========================
+    # =====================================
     # 最新予測
-    # =========================
+    # =====================================
 
     result = (
         predict_latest(
@@ -414,18 +573,18 @@ def main():
         result,
     )
 
-    # =========================
+    # =====================================
     # 保存
-    # =========================
+    # =====================================
 
     save_signal(
         data,
         result,
     )
 
-    # =========================
-    # 改善通知
-    # =========================
+    # =====================================
+    # モデル更新通知
+    # =====================================
 
     if improved:
 
@@ -440,9 +599,9 @@ def main():
 """
         )
 
-    # =========================
+    # =====================================
     # 学習レポート
-    # =========================
+    # =====================================
 
     if ENABLE_LEARNING_NOTIFICATION:
 
@@ -468,8 +627,7 @@ def main():
             )
 
             print(
-                "learning "
-                "report sent"
+                "learning report sent"
             )
 
     print(

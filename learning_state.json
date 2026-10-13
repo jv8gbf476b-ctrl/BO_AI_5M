@@ -66,10 +66,11 @@
     18600,
     18900,
     19200,
-    19500
+    19500,
+    19800
   ],
   "model_version": 42,
   "last_improve": 15900,
-  "last_check": 19500,
+  "last_check": 19800,
   "best_validation_rate": 52.22929936305732
 }

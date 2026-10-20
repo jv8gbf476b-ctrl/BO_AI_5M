@@ -71,10 +71,11 @@
     20100,
     20400,
     20700,
-    21000
+    21000,
+    21300
   ],
   "model_version": 42,
   "last_improve": 15900,
-  "last_check": 21000,
+  "last_check": 21300,
   "best_validation_rate": 52.22929936305732
 }

@@ -1,0 +1,295 @@
+name: BO AI Legacy Data Export
+
+on:
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  export:
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+
+    steps:
+      - name: Checkout BO_AI_5M
+        uses: actions/checkout@v4
+
+      - name: Setup Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: '3.11'
+
+      - name: Analyze and export legacy data
+        run: |
+          python - <<'PY'
+          import csv
+          import math
+          from pathlib import Path
+          from datetime import datetime, timedelta
+          from collections import Counter
+
+          SOURCE = Path("history.csv")
+          OUT = Path("legacy_export")
+          OUT.mkdir(exist_ok=True)
+
+          if not SOURCE.exists():
+              raise SystemExit("ERROR: history.csv not found")
+
+          with SOURCE.open(
+              encoding="utf-8-sig",
+              newline=""
+          ) as f:
+              rows = list(csv.DictReader(f))
+
+          print("=" * 50)
+          print("BO_AI_5M | LEGACY DATA INSPECTION")
+          print("=" * 50)
+
+          print("TOTAL HISTORY ROWS:", len(rows))
+
+          required = [
+              "id", "entry_time", "judge_time",
+              "signal", "result",
+              "entry_close", "result_close",
+              "Open", "High", "Low", "Close"
+          ]
+
+          if rows:
+              missing = [
+                  x for x in required
+                  if x not in rows[0]
+              ]
+              if missing:
+                  raise SystemExit(
+                      "Missing columns: " + str(missing)
+                  )
+
+          def parse_time(value):
+              try:
+                  result = datetime.fromisoformat(value)
+                  if result.tzinfo is None:
+                      return None
+                  return result
+              except (ValueError, TypeError):
+                  return None
+
+          def valid_price(value):
+              try:
+                  x = float(value)
+                  return math.isfinite(x) and x > 0
+              except (ValueError, TypeError):
+                  return False
+
+          def valid_ohlc(row):
+              keys = ["Open", "High", "Low", "Close"]
+              if not all(valid_price(row.get(k)) for k in keys):
+                  return False
+
+              o, h, l, c = [
+                  float(row[k]) for k in keys
+              ]
+
+              return (
+                  h >= max(o, c)
+                  and l <= min(o, c)
+                  and h >= l
+              )
+
+          unique = []
+          seen_ids = set()
+          duplicate_ids = 0
+
+          for row in rows:
+              record_id = row.get("id", "")
+
+              if record_id in seen_ids:
+                  duplicate_ids += 1
+                  continue
+
+              seen_ids.add(record_id)
+              unique.append(row)
+
+          print("DUPLICATE IDS:", duplicate_ids)
+          print("UNIQUE RECORDS:", len(unique))
+
+          valid_prediction_rows = []
+          valid_candle_rows = []
+
+          for row in unique:
+              entry = parse_time(row.get("entry_time"))
+              judge = parse_time(row.get("judge_time"))
+
+              if entry is None or judge is None:
+                  continue
+
+              if abs(
+                  (judge - entry).total_seconds() - 300
+              ) > 3:
+                  continue
+
+              if (
+                  row.get("signal") in ("HIGH", "LOW")
+                  and row.get("result") in (
+                      "WIN", "LOSE", "FLAT"
+                  )
+              ):
+                  valid_prediction_rows.append(row)
+
+              if valid_ohlc(row):
+                  valid_candle_rows.append(row)
+
+          print(
+              "VALID 5-MIN PREDICTIONS:",
+              len(valid_prediction_rows)
+          )
+
+          print(
+              "VALID 5-MIN OHLC RECORDS:",
+              len(valid_candle_rows)
+          )
+
+          wins = sum(
+              r["result"] == "WIN"
+              for r in valid_prediction_rows
+          )
+
+          losses = sum(
+              r["result"] == "LOSE"
+              for r in valid_prediction_rows
+          )
+
+          flats = sum(
+              r["result"] == "FLAT"
+              for r in valid_prediction_rows
+          )
+
+          print("WINS:", wins)
+          print("LOSSES:", losses)
+          print("FLATS:", flats)
+
+          if wins + losses:
+              print(
+                  "WIN RATE:",
+                  f"{wins / (wins + losses) * 100:.2f}%"
+              )
+
+          prediction_columns = [
+              "id", "entry_time", "judge_time",
+              "signal", "result",
+              "entry_close", "result_close",
+              "up_prob", "down_prob",
+              "confidence", "market_trend",
+              "market_volatility",
+              "RSI", "ATR"
+          ]
+
+          prediction_file = (
+              OUT / "bo_ai_legacy_predictions.csv"
+          )
+
+          with prediction_file.open(
+              "w", encoding="utf-8", newline=""
+          ) as f:
+              writer = csv.DictWriter(
+                  f,
+                  fieldnames=prediction_columns
+              )
+              writer.writeheader()
+
+              for row in valid_prediction_rows:
+                  writer.writerow({
+                      k: row.get(k, "")
+                      for k in prediction_columns
+                  })
+
+          candle_map = {}
+
+          for row in valid_candle_rows:
+              timestamp = parse_time(
+                  row.get("entry_time")
+              )
+
+              if timestamp is None:
+                  continue
+
+              key = timestamp.isoformat()
+
+              if key not in candle_map:
+                  candle_map[key] = {
+                      "time": key,
+                      "open": row["Open"],
+                      "high": row["High"],
+                      "low": row["Low"],
+                      "close": row["Close"]
+                  }
+
+          candles = sorted(
+              candle_map.values(),
+              key=lambda x: x["time"]
+          )
+
+          candle_file = (
+              OUT / "bo_ai_legacy_ohlc.csv"
+          )
+
+          with candle_file.open(
+              "w", encoding="utf-8", newline=""
+          ) as f:
+              writer = csv.DictWriter(
+                  f,
+                  fieldnames=[
+                      "time", "open", "high",
+                      "low", "close"
+                  ]
+              )
+              writer.writeheader()
+              writer.writerows(candles)
+
+          print("UNIQUE OHLC TIMESTAMPS:", len(candles))
+
+          gaps = Counter()
+
+          for previous, current in zip(
+              candles, candles[1:]
+          ):
+              a = parse_time(previous["time"])
+              b = parse_time(current["time"])
+
+              minutes = (b - a).total_seconds() / 60
+              gaps[minutes] += 1
+
+          print("5-MIN CONTINUOUS PAIRS:", gaps[5.0])
+
+          print(
+              "OTHER TIME GAPS:",
+              sum(
+                  n for gap, n in gaps.items()
+                  if gap != 5.0
+              )
+          )
+
+          if candles:
+              print("FIRST OHLC:", candles[0]["time"])
+              print("LAST OHLC:", candles[-1]["time"])
+
+          print("-" * 50)
+          print("EXPORTED:")
+          print(prediction_file)
+          print(candle_file)
+          print("-" * 50)
+
+          print("SOURCE HISTORY: UNCHANGED")
+          print("REAL ORDERS: DISABLED")
+          print("BROKER API: DISABLED")
+          print("NOTE: OHLC timestamps require validation")
+          print("against original candle timing.")
+          print("ANALYSIS COMPLETED")
+          PY
+
+      - name: Save exported datasets
+        uses: actions/upload-artifact@v4
+        with:
+          name: BO-AI-5M-Legacy-Research-Data
+          path: legacy_export/
+          retention-days: 7

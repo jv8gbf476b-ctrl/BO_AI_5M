@@ -82,10 +82,11 @@
     23400,
     23700,
     24000,
-    24300
+    24300,
+    24600
   ],
   "model_version": 43,
   "last_improve": 24000,
-  "last_check": 24300,
+  "last_check": 24600,
   "best_validation_rate": 52.71294331615641
 }

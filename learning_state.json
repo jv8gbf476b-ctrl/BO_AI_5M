@@ -92,10 +92,11 @@
     26400,
     26700,
     27000,
-    27300
+    27300,
+    27600
   ],
   "model_version": 43,
   "last_improve": 24000,
-  "last_check": 27300,
+  "last_check": 27600,
   "best_validation_rate": 52.71294331615641
 }
